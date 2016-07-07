@@ -26,8 +26,8 @@ public class MainActivity extends AppCompatActivity {
     static final String STATE_SECONDS = "seconds";
     static final String STATE_STIMULI = "stimuli";
     static final String STATE_INTENSITY = "intensity";
+    static final String STATE_RUNNING = "running";
 
-    private Intent backgroundService;
     private SharedPreferences prefs;
 
     private NumberPicker hoursPicker;
@@ -39,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private FloatingActionButton startButton;
     private FloatingActionButton stopButton;
 
+    private boolean isRunning;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,25 +50,21 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getPreferences(0);
 
+        isRunning = prefs.getBoolean(STATE_RUNNING, false);
+
         initPickers();
         initSpinner();
-        initBackgroundService();
         initButtons();
+
+        if(isRunning)
+            setRunningState();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 
-        SharedPreferences.Editor ed = prefs.edit();
-
-        ed.putInt(STATE_HOURS, hoursPicker.getValue());
-        ed.putInt(STATE_MINUTES, minutesPicker.getValue());
-        ed.putInt(STATE_SECONDS, secondsPicker.getValue());
-        ed.putString(STATE_STIMULI, (String)spinner.getSelectedItem());
-        ed.putInt(STATE_INTENSITY, intensityPicker.getValue());
-
-        ed.commit();
+        storeState();
     }
 
     @Override
@@ -153,10 +151,6 @@ public class MainActivity extends AppCompatActivity {
         spinner.setSelection(adapter.getPosition(prefs.getString(STATE_STIMULI, "Beep")));
     }
 
-    private void initBackgroundService() {
-        backgroundService = new Intent(this, TimerService.class);
-    }
-
     private void initButtons() {
 
         startButton = (FloatingActionButton) findViewById(R.id.start);
@@ -166,10 +160,8 @@ public class MainActivity extends AppCompatActivity {
 
         startButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                startButton.hide();
-                stopButton.show();
-
-                setEnabledInputs(false);
+                setRunningState();
+                storeState();
 
                 SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
                 String username = sharedPref.getString("pref_username", "");
@@ -178,20 +170,41 @@ public class MainActivity extends AppCompatActivity {
                 TimerService.setCredentials(username, password);
                 TimerService.setOptions(getIntervalInMilliseconds(), getStimuli(), getIntensity());
 
-                startService(backgroundService);
+                Intent startIntent = new Intent(MainActivity.this, TimerService.class);
+                startIntent.setAction(TimerService.ACTION_START);
+                startService(startIntent);
             }
         });
 
         stopButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                startButton.show();
-                stopButton.hide();
 
-                setEnabledInputs(true);
+                Intent stopIntent = new Intent(MainActivity.this, TimerService.class);
+                stopIntent.setAction(TimerService.ACTION_STOP);
+                startService(stopIntent);
 
-                stopService(backgroundService);
+                setPausedState();
+                storeState();
             }
         });
+    }
+
+    private void setRunningState(){
+        isRunning = true;
+
+        startButton.hide();
+        stopButton.show();
+
+        setEnabledInputs(false);
+    }
+
+    private void setPausedState(){
+        isRunning = false;
+
+        startButton.show();
+        stopButton.hide();
+
+        setEnabledInputs(true);
     }
 
     private void setEnabledInputs(boolean enabled){
@@ -200,6 +213,19 @@ public class MainActivity extends AppCompatActivity {
         secondsPicker.setEnabled(enabled);
         intensityPicker.setEnabled(enabled);
         spinner.setEnabled(enabled);
+    }
+
+    private void storeState(){
+        SharedPreferences.Editor ed = prefs.edit();
+
+        ed.putInt(STATE_HOURS, hoursPicker.getValue());
+        ed.putInt(STATE_MINUTES, minutesPicker.getValue());
+        ed.putInt(STATE_SECONDS, secondsPicker.getValue());
+        ed.putString(STATE_STIMULI, (String)spinner.getSelectedItem());
+        ed.putInt(STATE_INTENSITY, intensityPicker.getValue());
+        ed.putBoolean(STATE_RUNNING, isRunning);
+
+        ed.commit();
     }
 
     private long getIntervalInMilliseconds(){
