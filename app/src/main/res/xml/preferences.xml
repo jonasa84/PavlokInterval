@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <EditTextPreference
+        android:key="pref_username"
+        android:title="Username"
+        android:summary="The username for your Pavlok account"
+        android:defaultValue=""
+        android:inputType="textEmailAddress"></EditTextPreference>
+
+    <EditTextPreference
+        android:key="pref_password"
+        android:title="Password"
+        android:summary="The password for your Pavlok account"
+        android:defaultValue=""
+        android:inputType="textPassword"
+        ></EditTextPreference>
+
+</PreferenceScreen>
